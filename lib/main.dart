@@ -40,10 +40,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   // data[연도][나이대][지역]
-  var data = <int, Map<String, Map<String, dynamic>>>{};
+  var data = <int, Map<String, Map<String, double>>>{};
   late List<int> years;
   late List<String> ages;
   late List<String> regions;
+
+  late Future<Map<String, Map<String, double>>>? renderData;
 
   @override
   void initState() {
@@ -53,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
     loadData();
   }
 
-  void loadData() async {
+  Future<void> loadData() async {
     String csvText;
     if (kIsWeb) {
       final response = await http.get(Uri.parse("assets/assets/data.csv"));
@@ -64,7 +66,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     List<List<dynamic>> rawData =
         const CsvToListConverter(eol: '\n').convert(csvText);
-    debugPrint("Raw Data Loaded! Start Parsing...");
+    debugPrint("Raw Data Loaded!");
+    debugPrint("Start Parsing...");
 
     int nRows = rawData.length;
     int nCols = rawData[0].length;
@@ -72,12 +75,14 @@ class _MyHomePageState extends State<MyHomePage> {
     years = List<int>.generate(22, (index) => index + 2000);
     ages =
         List<String>.generate(8, (index) => parseAges(rawData[1][index + 1]));
+    regions = List<String>.generate(
+        nRows - 2, (index) => parseAges(rawData[index + 2][0]));
 
     for (int year in years) {
-      data[year] = <String, Map<String, dynamic>>{};
+      data[year] = <String, Map<String, double>>{};
 
       for (String age in ages) {
-        data[year]![age] = <String, dynamic>{};
+        data[year]![age] = <String, double>{};
       }
     }
 
@@ -97,6 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("Data Load Done:");
     // debugPrint(data.toString());
+    setState(() {});
   }
 
   String parseAges(String age) => age.replaceAll("모의 연령별출산율:", "");
@@ -110,24 +116,31 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Column(
         children: [
-          // Chart
-          Center(
-            child: SizedBox(
-              width: 800,
-              height: 600,
-              child: BarChart(
-                BarChartData(
-                    barGroups: [1, 2, 3, 4]
-                        .map((e) => BarChartGroupData(
-                              x: e,
-                              barRods: [BarChartRodData(toY: e.toDouble())],
-                            ))
-                        .toList()),
-                swapAnimationDuration: const Duration(microseconds: 150),
-                swapAnimationCurve: Curves.linear,
+          FutureBuilder(
+            future: Future.delayed(Duration(seconds: 3)),
+            builder: (context, snapshot) => Center(
+              child: SizedBox(
+                width: 800,
+                height: 600,
+                child: BarChart(
+                  BarChartData(
+                      barGroups: List<int>.generate(regions.length, (i) => i)
+                          .map((i) => BarChartGroupData(
+                                x: i + 1,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: data[2020]!['합계출산율']![regions[i]]!,
+                                  )
+                                ],
+                              ))
+                          .toList()),
+                  swapAnimationDuration: const Duration(microseconds: 150),
+                  swapAnimationCurve: Curves.linear,
+                ),
               ),
             ),
           ),
+          // Chart
         ],
       ),
       floatingActionButton: FloatingActionButton(
