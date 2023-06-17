@@ -64,8 +64,9 @@ class _MyHomePageState extends State<MyHomePage> {
       csvText = await File('assets/data.csv').readAsString();
     }
 
-    List<List<dynamic>> rawData =
-        const CsvToListConverter(eol: '\n').convert(csvText);
+    List<List<dynamic>> rawData = const CsvToListConverter(eol: '\n').convert(csvText);
+    debugPrint("Raw Data Loaded!");
+    debugPrint("Start Parsing...");
     debugPrint("Raw Data Loaded!");
     debugPrint("Start Parsing...");
 
@@ -73,10 +74,9 @@ class _MyHomePageState extends State<MyHomePage> {
     int nCols = rawData[0].length;
 
     years = List<int>.generate(22, (index) => index + 2000);
-    ages =
-        List<String>.generate(8, (index) => parseAges(rawData[1][index + 1]));
-    regions = List<String>.generate(
-        nRows - 2, (index) => parseAges(rawData[index + 2][0]));
+    ages = List<String>.generate(8, (index) => parseAges(rawData[1][index + 1]));
+    regions = List<String>.generate(nRows - 2, (index) => parseAges(rawData[index + 2][0]));
+    regions = List<String>.generate(nRows - 2, (index) => parseAges(rawData[index + 2][0]));
 
     for (int year in years) {
       data[year] = <String, Map<String, double>>{};
