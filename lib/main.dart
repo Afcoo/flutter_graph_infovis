@@ -39,7 +39,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late List<List<dynamic>> data;
+  // data[연도][나이대][지역]
+  var data = <int, Map<String, Map<String, dynamic>>>{};
+  late List<int> years;
+  late List<String> ages;
+  late List<String> regions;
 
   @override
   void initState() {
@@ -58,9 +62,44 @@ class _MyHomePageState extends State<MyHomePage> {
       csvText = await File('assets/data.csv').readAsString();
     }
 
-    data = const CsvToListConverter().convert(csvText);
-    debugPrint("Data Load Done");
+    List<List<dynamic>> rawData =
+        const CsvToListConverter(eol: '\n').convert(csvText);
+    debugPrint("Raw Data Loaded! Start Parsing...");
+
+    int nRows = rawData.length;
+    int nCols = rawData[0].length;
+
+    years = List<int>.generate(22, (index) => index + 2000);
+    ages =
+        List<String>.generate(8, (index) => parseAges(rawData[1][index + 1]));
+
+    for (int year in years) {
+      data[year] = <String, Map<String, dynamic>>{};
+
+      for (String age in ages) {
+        data[year]![age] = <String, dynamic>{};
+      }
+    }
+
+    for (var i = 1; i < nCols; i++) {
+      int year = rawData[0][i];
+      String age = parseAges(rawData[1][i]);
+
+      for (var j = 2; j < nRows; j++) {
+        String region = rawData[j][0];
+
+        var value = rawData[j][i];
+        if (value != "-") {
+          data[year]![age]![region] = value.toDouble();
+        }
+      }
+    }
+
+    debugPrint("Data Load Done:");
+    // debugPrint(data.toString());
   }
+
+  String parseAges(String age) => age.replaceAll("모의 연령별출산율:", "");
 
   @override
   Widget build(BuildContext context) {
@@ -71,19 +110,22 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Column(
         children: [
-          SizedBox(
-            width: 800,
-            height: 600,
-            child: BarChart(
-              BarChartData(
-                  barGroups: [1, 2, 3, 4]
-                      .map((e) => BarChartGroupData(
-                            x: e,
-                            barRods: [BarChartRodData(toY: e.toDouble())],
-                          ))
-                      .toList()),
-              swapAnimationDuration: const Duration(microseconds: 150),
-              swapAnimationCurve: Curves.linear,
+          // Chart
+          Center(
+            child: SizedBox(
+              width: 800,
+              height: 600,
+              child: BarChart(
+                BarChartData(
+                    barGroups: [1, 2, 3, 4]
+                        .map((e) => BarChartGroupData(
+                              x: e,
+                              barRods: [BarChartRodData(toY: e.toDouble())],
+                            ))
+                        .toList()),
+                swapAnimationDuration: const Duration(microseconds: 150),
+                swapAnimationCurve: Curves.linear,
+              ),
             ),
           ),
         ],
