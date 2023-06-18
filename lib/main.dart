@@ -42,6 +42,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   // data[연도][나이대][지역]
   var data = <int, Map<String, Map<String, double>>>{};
+  var data2 = <int, Map<String, double>>{};
   late List<int> years;
   late List<String> ages;
   late List<String> regions;
@@ -85,15 +86,20 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<bool> loadData() async {
     if (data.isNotEmpty) return true;
-    String csvText;
+    String csvText, csvText2;
     if (kIsWeb) {
       final response = await http.get(Uri.parse("assets/assets/data.csv"));
       csvText = utf8.decode(response.bodyBytes);
+
+      final response2 = await http.get(Uri.parse("assets/assets/data2.csv"));
+      csvText2 = utf8.decode(response2.bodyBytes);
     } else {
       csvText = await File('assets/data.csv').readAsString();
+      csvText2 = await File('assets/data2.csv').readAsString();
     }
 
     List<List<dynamic>> rawData = const CsvToListConverter(eol: '\n').convert(csvText);
+    List<List<dynamic>> rawData2 = const CsvToListConverter(eol: '\n').convert(csvText2);
     debugPrint("Raw Data Loaded!");
     debugPrint("Start Parsing...");
 
@@ -106,6 +112,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     for (int year in years) {
       data[year] = <String, Map<String, double>>{};
+      data2[year] = <String, double>{};
 
       for (String age in ages) {
         data[year]![age] = <String, double>{};
@@ -127,7 +134,24 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     debugPrint("Data Load Done:");
-    // debugPrint(data.toString());
+
+    nRows = rawData2.length;
+    nCols = rawData2[0].length;
+
+    for (var i = 1; i < nCols; i++) {
+      int year = rawData2[0][i];
+
+      for (var j = 1; j < nRows; j++) {
+        String region = rawData2[j][0];
+
+        var value = rawData2[j][i];
+        if (value != "-") {
+          data2[year]![region] = value.toDouble();
+        }
+      }
+    }
+
+    debugPrint("Data2 Load Done:");
 
     clearFilter();
     // showFilterDialog();
@@ -266,12 +290,14 @@ class _MyHomePageState extends State<MyHomePage> {
         selectedFilter = <String>["전국"];
         break;
       case 3:
-        break;
+        filterOptions = List.from(regions);
+        filterOptions.removeWhere((element) => element == "전국");
+        selectedFilter = List.from(filterOptions);
     }
     setState(() {});
   }
 
-  int chartNum = 1;
+  int chartNum = 3;
 
   double _year = 2021;
   var _yearRange = const RangeValues(2000, 2021);
@@ -552,9 +578,255 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         );
       case 3:
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 100),
+                  const Text("Sorting", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: applySort,
+                        onChanged: (value) {
+                          applySort = value!;
+                          setState(() {});
+                        },
+                      ),
+                      const Text("Apply Sorting", style: TextStyle(fontSize: 18)),
+                    ],
+                  ),
+                  // fertility/population
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: !sortAsFertility,
+                          onChanged: (value) {
+                            sortAsFertility = false;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Sort As Population", style: TextStyle(fontSize: 18)),
+                      ],
+                    ),
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: sortAsFertility,
+                          onChanged: (value) {
+                            sortAsFertility = true;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Sort As Fertility", style: TextStyle(fontSize: 18)),
+                      ],
+                    ),
+                  // ascending/descending
+
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: !sortAscending,
+                          onChanged: (value) {
+                            sortAscending = false;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Descending Order", style: TextStyle(fontSize: 18)),
+                      ],
+                    ),
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: sortAscending,
+                          onChanged: (value) {
+                            sortAscending = true;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Ascending Order", style: TextStyle(fontSize: 18)),
+                      ],
+                    )
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 30),
+                Text("Year : ${_year.toStringAsFixed(0)}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    )),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("2000", style: sliderTextStyle),
+                    SizedBox(
+                      width: 600,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6,
+                        ),
+                        child: Slider(
+                          value: _year,
+                          onChanged: (value) => setState(() {
+                            _year = value.roundToDouble();
+                          }),
+                          min: 2000,
+                          max: 2021,
+                          divisions: 20,
+                          label: _year.toString(),
+                        ),
+                      ),
+                    ),
+                    Text("2021", style: sliderTextStyle),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+                // chart
+                SizedBox(
+                  width: chartWidth,
+                  height: chartHeight,
+                  child: getPieChart(
+                    year: _year.toInt(),
+                    selectedRegions: List.from(selectedFilter),
+                    sort: applySort,
+                    isAscending: sortAscending,
+                    sortAsFertility: sortAsFertility,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 50),
+            SizedBox(
+              width: 270,
+              child: getLegend(),
+            ),
+          ],
+        );
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  bool sortAsFertility = false;
+
+  Widget getPieChart({
+    required int year,
+    required List<String> selectedRegions,
+    bool sort = true,
+    bool sortAsFertility = false,
+    bool isAscending = false,
+    double degreeOffset = 180,
+  }) {
+    if (sort) {
+      selectedRegions.sort((a, b) {
+        if (sortAsFertility) {
+          double? _a = getData(year, a, "합계출산율");
+          double? _b = getData(year, b, "합계출산율");
+
+          _a ??= isAscending ? 100 : 0;
+          _b ??= isAscending ? 100 : 0;
+
+          return isAscending ? _a.compareTo(_b) : _b.compareTo(_a);
+        } else {
+          double? _a = getData2(year, a);
+          double? _b = getData2(year, b);
+
+          _a ??= isAscending ? 1000000000000 : 0;
+          _b ??= isAscending ? 1000000000000 : 0;
+
+          return isAscending ? _a.compareTo(_b) : _b.compareTo(_a);
+        }
+      });
+    }
+
+    return PieChart(
+      PieChartData(
+        startDegreeOffset: degreeOffset,
+        centerSpaceRadius: 10,
+        sections: selectedRegions.asMap().entries.map(
+          (e) {
+            double fertility = getData(year, e.value, "합계출산율") ?? 0;
+            double population = getData2(year, e.value) ?? 0;
+
+            return PieChartSectionData(
+              color: Color(colorCodes[e.key]),
+              radius: 200 * (1 + math.log(fertility)),
+              value: population,
+              title: fertility.toString(),
+              titleStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                shadows: [
+                  Shadow(
+                      // bottomLeft
+                      offset: Offset(-0.5, -0.5),
+                      color: Colors.white),
+                  Shadow(
+                      // bottomRight
+                      offset: Offset(0.5, -0.5),
+                      color: Colors.white),
+                  Shadow(
+                      // topRight
+                      offset: Offset(0.5, 0.5),
+                      color: Colors.white),
+                  Shadow(
+                      // topLeft
+                      offset: Offset(-0.5, 0.5),
+                      color: Colors.white),
+                ],
+              ),
+              titlePositionPercentageOffset: 0.7,
+              badgeWidget: getBadge(regionText[e.value]!),
+              badgePositionPercentageOffset: 1.1,
+            );
+          },
+        ).toList(),
+      ),
+      swapAnimationDuration: const Duration(milliseconds: 150),
+      swapAnimationCurve: Curves.linear,
+    );
+  }
+
+  Widget getBadge(String value) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        height: 26,
+        child: ColoredBox(
+          color: Colors.black38,
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget getBarChart({
@@ -790,4 +1062,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return data[year]?[age]?[region];
   }
+
+  double? getData2(int year, String region) => data2[year]?[region];
 }
