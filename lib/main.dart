@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -45,17 +46,44 @@ class _MyHomePageState extends State<MyHomePage> {
   late List<String> ages;
   late List<String> regions;
 
-  late Future<Map<String, Map<String, double>>>? renderData;
+  var regionText = <String, String>{
+    "전국": "Countrywide",
+    "서울특별시": "Seoul",
+    "부산광역시": "Busan",
+    "대구광역시": "Daegu",
+    "인천광역시": "Incheon",
+    "광주광역시": "Gwangju",
+    "대전광역시": "Daejeon",
+    "울산광역시": "Ulsan",
+    "세종특별자치시": "Sejong",
+    "경기도": "Gyeonggi-do",
+    "강원도": "Gangwon-do",
+    "충청북도": "Chungcheongbuk-do",
+    "충청남도": "Chungcheongnam-do",
+    "전라북도": "Jeollabuk-do",
+    "전라남도": "Jeollanam-do",
+    "경상북도": "Gyeongsangbuk-do",
+    "경상남도": "Gyeongsangnam-do",
+    "제주특별자치도": "Jeju-do",
+  };
+
+  var availableChart = <String, int>{
+    "Bar Chart": 1,
+    "Line Chart": 2,
+  };
+
+  final double chartWidth = 800;
+  final double chartHeight = 600;
 
   @override
   void initState() {
     super.initState();
 
     debugPrint("Start Data Loading...");
-    loadData();
   }
 
-  Future<void> loadData() async {
+  Future<bool> loadData() async {
+    if (data.isNotEmpty) return true;
     String csvText;
     if (kIsWeb) {
       final response = await http.get(Uri.parse("assets/assets/data.csv"));
@@ -67,16 +95,13 @@ class _MyHomePageState extends State<MyHomePage> {
     List<List<dynamic>> rawData = const CsvToListConverter(eol: '\n').convert(csvText);
     debugPrint("Raw Data Loaded!");
     debugPrint("Start Parsing...");
-    debugPrint("Raw Data Loaded!");
-    debugPrint("Start Parsing...");
 
     int nRows = rawData.length;
     int nCols = rawData[0].length;
 
     years = List<int>.generate(22, (index) => index + 2000);
     ages = List<String>.generate(8, (index) => parseAges(rawData[1][index + 1]));
-    regions = List<String>.generate(nRows - 2, (index) => parseAges(rawData[index + 2][0]));
-    regions = List<String>.generate(nRows - 2, (index) => parseAges(rawData[index + 2][0]));
+    regions = List<String>.generate(17, (index) => rawData[index + 2][0]);
 
     for (int year in years) {
       data[year] = <String, Map<String, double>>{};
@@ -102,46 +127,43 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("Data Load Done:");
     // debugPrint(data.toString());
-    setState(() {});
+
+    return true;
   }
 
-  String parseAges(String age) => age.replaceAll("모의 연령별출산율:", "");
+  String parseAges(String age) => age.replaceAll("모의 연령별출산율:", "").replaceAll("세", "");
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: DropdownButton(
+          items: availableChart.entries
+              .map((e) => DropdownMenuItem(
+                    value: e.value,
+                    child: Text(
+                      e.key,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ))
+              .toList(),
+          onChanged: (value) => setState(() {
+            chartNum = value!;
+          }),
+          value: chartNum,
+        ),
       ),
-      body: Column(
-        children: [
-          FutureBuilder(
-            future: Future.delayed(Duration(seconds: 3)),
-            builder: (context, snapshot) => Center(
-              child: SizedBox(
-                width: 800,
-                height: 600,
-                child: BarChart(
-                  BarChartData(
-                      barGroups: List<int>.generate(regions.length, (i) => i)
-                          .map((i) => BarChartGroupData(
-                                x: i + 1,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: data[2020]!['합계출산율']![regions[i]]!,
-                                  )
-                                ],
-                              ))
-                          .toList()),
-                  swapAnimationDuration: const Duration(microseconds: 150),
-                  swapAnimationCurve: Curves.linear,
-                ),
-              ),
-            ),
-          ),
-          // Chart
-        ],
+      body: FutureBuilder(
+        future: loadData(),
+        builder: (context, snapshot) => snapshot.hasData
+            //데이터 로드 완료
+            ? getChart()
+            // 그 외 (에러 및 로딩중)
+            : const Center(child: CircularProgressIndicator()),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
@@ -149,5 +171,450 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  int chartNum = 2;
+
+  double _year = 2021;
+  var _yearRange = const RangeValues(2000, 2021);
+
+  bool applySort = false;
+  bool sortAscending = false;
+
+  List<String> filterOptions = List.empty();
+  List<String> selectedFilter = List.empty();
+
+  TextStyle sliderTextStyle = const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+
+  double baseY = 1.0;
+  double zoomY = 1.0;
+
+  List<int> colorCodes = <int>[
+    0xfd7f6fff,
+    0x7eb0d5ff,
+    0xb2e061ff,
+    0xbd7ebeff,
+    0xffb55aff,
+    0xffee65ff,
+    0xbeb9dbff,
+    0xfdcce5ff,
+    0x8bd3c7ff,
+    0xb30000ff,
+    0x7c1158ff,
+    0x4421afff,
+    0x1a53ffff,
+    0x0d88e6ff,
+    0x00b7c7ff,
+    0x5ad45aff,
+    0x8be04eff,
+    0xebdc78ff,
+  ];
+
+  Widget getChart() {
+    switch (chartNum) {
+      case 1:
+        // First Bar Chart
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("2000", style: sliderTextStyle),
+                SizedBox(
+                  width: 600,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 6,
+                    ),
+                    child: Slider(
+                      value: _year,
+                      onChanged: (value) => setState(() {
+                        _year = value.roundToDouble();
+                      }),
+                      min: 2000,
+                      max: 2021,
+                      divisions: 20,
+                      label: _year.toString(),
+                    ),
+                  ),
+                ),
+                Text("2021", style: sliderTextStyle),
+              ],
+            ),
+            Text("Year: ${_year.toStringAsFixed(0)}", style: sliderTextStyle),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Checkbox(
+                      value: applySort,
+                      onChanged: (value) {
+                        applySort = value!;
+                        setState(() {});
+                      },
+                    ),
+                    const Text("Apply Sort"),
+                  ],
+                ),
+                if (applySort)
+                  Row(
+                    children: [
+                      const SizedBox(width: 20),
+                      Checkbox(
+                        value: !sortAscending,
+                        onChanged: (value) {
+                          sortAscending = false;
+                          setState(() {});
+                        },
+                      ),
+                      const Text("Descending Order"),
+                    ],
+                  ),
+                if (applySort)
+                  Row(
+                    children: [
+                      const SizedBox(width: 20),
+                      Checkbox(
+                        value: sortAscending,
+                        onChanged: (value) {
+                          sortAscending = true;
+                          setState(() {});
+                        },
+                      ),
+                      const Text("Ascending Order"),
+                    ],
+                  )
+              ],
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: chartWidth,
+              height: chartHeight,
+              child: getBarChart(
+                year: _year.toInt(),
+                xAxis: List.from(regions),
+                subXAxis: ['합계출산율'],
+                sort: applySort,
+                isAscending: sortAscending,
+                excludeXs: selectedFilter,
+              ),
+            ),
+          ],
+        );
+      case 2:
+        return Row(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(zoomY.toStringAsFixed(1), style: sliderTextStyle),
+                    Transform.rotate(
+                      angle: -math.pi / 2,
+                      origin: const Offset(70, 70),
+                      child: SizedBox(
+                        width: 300,
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 6,
+                            minThumbSeparation: 50,
+                          ),
+                          child: Slider(
+                            value: zoomY,
+                            min: 1,
+                            max: 2.9,
+                            onChanged: (value) => setState(() {
+                              zoomY = value;
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 300),
+                    Text("Zoom Y Axis", style: sliderTextStyle)
+                  ],
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(baseY.toStringAsFixed(1), style: sliderTextStyle),
+                    Transform.rotate(
+                      angle: -math.pi / 2,
+                      origin: const Offset(70, 70),
+                      child: SizedBox(
+                        width: 300,
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 6,
+                            minThumbSeparation: 50,
+                          ),
+                          child: Slider(
+                            value: baseY,
+                            min: 0,
+                            max: 2,
+                            onChanged: (value) => setState(() {
+                              baseY = value;
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 300),
+                    Text("Base Y Axis", style: sliderTextStyle)
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: chartWidth,
+                      height: chartHeight,
+                      child: getLineChart(
+                        minYear: _yearRange.start.toInt(),
+                        maxYear: _yearRange.end.toInt(),
+                        regions: regions.skip(10).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("2000", style: sliderTextStyle),
+                        SizedBox(
+                          width: 600,
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 6,
+                              minThumbSeparation: 50,
+                            ),
+                            child: RangeSlider(
+                              values: _yearRange,
+                              onChanged: (values) => setState(() {
+                                _yearRange = RangeValues(values.start.roundToDouble(), values.end.roundToDouble());
+                              }),
+                              min: 2000,
+                              max: 2021,
+                              divisions: 20,
+                              labels: RangeLabels(
+                                _yearRange.start.round().toString(),
+                                _yearRange.end.round().toString(),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("2021", style: sliderTextStyle),
+                      ],
+                    ),
+                    Text("Year: ${_yearRange.start} - ${_yearRange.end}", style: sliderTextStyle),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget getBarChart({
+    required int year,
+    required List<String> xAxis,
+    required List<String> subXAxis,
+    bool sort = false,
+    bool isAscending = false,
+    List<String>? excludeXs,
+  }) {
+    if (excludeXs != null) {
+      xAxis = xAxis.where((element) => !excludeXs.contains(element)).toList();
+    }
+
+    if (sort) {
+      xAxis.sort((a, b) {
+        double? _a = getData(year, a, subXAxis[0]);
+        double? _b = getData(year, b, subXAxis[0]);
+
+        _a ??= isAscending ? 100 : 0;
+        _b ??= isAscending ? 100 : 0;
+
+        return isAscending ? _a.compareTo(_b) : _b.compareTo(_a);
+      });
+    }
+
+    return BarChart(
+      BarChartData(
+        maxY: 2,
+        gridData: const FlGridData(
+          // drawHorizontalLine: false,
+          drawVerticalLine: false,
+        ),
+        rangeAnnotations: const RangeAnnotations(),
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) => Transform.rotate(
+                angle: 1,
+                origin: const Offset(-75, 125),
+                child: SizedBox(
+                  width: 280,
+                  child: Text(
+                    regionText[xAxis[value.toInt() - 1]] ?? "?",
+                    textAlign: TextAlign.left,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(
+              reservedSize: 32,
+              interval: 0.5,
+              showTitles: true,
+            ),
+          ),
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+        ),
+        barGroups: xAxis
+            .asMap()
+            .entries
+            .map((x) => BarChartGroupData(
+                  x: x.key + 1,
+                  barRods: subXAxis
+                      .map((subX) => BarChartRodData(
+                            toY: getData(year, subX, x.value) ?? 0,
+                          ))
+                      .toList(),
+                ))
+            .toList(),
+      ),
+      swapAnimationDuration: const Duration(microseconds: 500),
+      swapAnimationCurve: Curves.linear,
+    );
+  }
+
+  Widget getLineChart({
+    required int minYear,
+    required int maxYear,
+    List<String> regions = const <String>["전국"],
+    List<String>? excludeXs,
+  }) {
+    var yearLength = maxYear - minYear + 1;
+    var minY = baseY - (3 - zoomY);
+    var maxY = baseY + (3 - zoomY);
+    return LineChart(
+      LineChartData(
+        minY: minY,
+        maxY: maxY,
+        minX: 0,
+        maxX: yearLength.toDouble() - 1,
+        gridData: const FlGridData(
+          drawHorizontalLine: true,
+          horizontalInterval: 0.1,
+          drawVerticalLine: true,
+          verticalInterval: 1,
+        ),
+        rangeAnnotations: const RangeAnnotations(),
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              interval: 1,
+              showTitles: true,
+              getTitlesWidget: (value, meta) => Transform.rotate(
+                angle: 1,
+                origin: const Offset(-75, 125),
+                child: SizedBox(
+                  width: 280,
+                  child: Text(
+                    (value + minYear).toString(),
+                    textAlign: TextAlign.left,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(
+              reservedSize: 40,
+              interval: 0.5,
+              showTitles: true,
+            ),
+          ),
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+        ),
+        lineBarsData: regions
+            .asMap()
+            .entries
+            .map(
+              (e) => LineChartBarData(
+                color: Color(colorCodes[e.key]),
+                spots: List.generate(
+                  yearLength,
+                  (index) {
+                    int year = minYear + index;
+                    double value = getData(year, e.value, "합계출산율") ?? 0;
+
+                    if (value > maxY) value = maxY;
+                    if (value < minY) value = minY;
+
+                    return FlSpot(index.toDouble(), value);
+                  },
+                ),
+              ),
+            )
+            .toList(),
+        lineTouchData: LineTouchData(
+          // touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
+          //   debugPrint(event.toString());
+          //   debugPrint(touchResponse.toString());
+          //   if (event is FlLongPressStart) {
+          //     // handle tap here
+          //     for (var element in touchResponse!.lineBarSpots!) {
+          // 			element.bar.dotData.
+          //     }
+          //   }
+          // },
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+              fitInsideVertically: true,
+              tooltipBgColor: Colors.black.withOpacity(0.8),
+              maxContentWidth: 250,
+              getTooltipItems: (touchedSpots) => touchedSpots.asMap().entries.map(
+                    (e) {
+                      int year = (touchedSpots[0].spotIndex + minYear);
+                      String yearTooptip = "[ ${year.toString()} ]\n";
+
+                      return LineTooltipItem(
+                        "${e.key == 0 ? yearTooptip : ""}${regionText[regions[e.value.barIndex]]}: ${e.value.bar.spots[e.value.spotIndex].y}",
+                        const TextStyle(color: Colors.white),
+                      );
+                    },
+                  ).toList()),
+        ),
+      ),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.linear,
+    );
+  }
+
+  double? getData(int year, String s1, String s2) {
+    late String region, age;
+    if (regions.contains(s1)) {
+      region = s1;
+      age = s2;
+    } else {
+      region = s2;
+      age = s1;
+    }
+    return data[year]?[age]?[region];
   }
 }
