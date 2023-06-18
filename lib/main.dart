@@ -244,7 +244,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   TextButton(
                       onPressed: () {
-                        selectedFilter = List.from(regions);
+                        selectedFilter.clear();
+                        selectedFilter.addAll(List.from(filterOptions));
                         setState(() {});
                       },
                       child: const Text("Select All")),
