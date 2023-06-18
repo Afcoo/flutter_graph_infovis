@@ -775,10 +775,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
             Color color = Color(colorCodes[e.key]);
             Color borderColor = Colors.black45;
+            Color textColor = Colors.black;
+            double textSize = 16;
 
             if (!isPieHighlighted(e.key)) {
               color = color.withOpacity(0.15);
               borderColor = Colors.white;
+              textColor = Colors.black26;
+              textSize = 12;
             }
 
             return PieChartSectionData(
@@ -790,10 +794,11 @@ class _MyHomePageState extends State<MyHomePage> {
               radius: 200 * (1 + math.log(fertility)),
               value: population,
               title: fertility.toString(),
-              titleStyle: const TextStyle(
+              titleStyle: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
-                shadows: [
+                fontSize: textSize,
+                color: textColor,
+                shadows: const [
                   Shadow(
                       // bottomLeft
                       offset: Offset(-0.5, -0.5),
