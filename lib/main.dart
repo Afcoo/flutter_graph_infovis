@@ -70,6 +70,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var availableChart = <String, int>{
     "Bar Chart": 1,
     "Line Chart": 2,
+    "Pie Chart": 3,
   };
 
   final double chartWidth = 800;
@@ -207,6 +208,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 )
                 .toList();
+//
+            filters.insert(
+              0,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  TextButton(
+                      onPressed: () {
+                        selectedFilter = List.from(regions);
+                        setState(() {});
+                      },
+                      child: const Text("Select All")),
+                  TextButton(
+                      onPressed: () {
+                        selectedFilter.clear();
+                        setState(() {});
+                      },
+                      child: const Text("Deselect All")),
+                ],
+              ),
+            );
+            filters.insert(1, const Row(children: [SizedBox(height: 10)]));
+
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
               title: const Text("Set Filter", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -247,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  int chartNum = 2;
+  int chartNum = 1;
 
   double _year = 2021;
   var _yearRange = const RangeValues(2000, 2021);
@@ -264,116 +288,135 @@ class _MyHomePageState extends State<MyHomePage> {
   double zoomY = 1.0;
 
   List<int> colorCodes = <int>[
-    0xfd7f6fff,
-    0x7eb0d5ff,
-    0xb2e061ff,
-    0xbd7ebeff,
-    0xffb55aff,
-    0xffee65ff,
-    0xbeb9dbff,
-    0xfdcce5ff,
-    0x8bd3c7ff,
-    0xb30000ff,
-    0x7c1158ff,
-    0x4421afff,
-    0x1a53ffff,
-    0x0d88e6ff,
-    0x00b7c7ff,
-    0x5ad45aff,
-    0x8be04eff,
-    0xebdc78ff,
+    0xfffd7f6f,
+    0xff7eb0d5,
+    0xffb2e061,
+    0xffbd7ebe,
+    0xffffb55a,
+    0xffffee65,
+    0xffbeb9db,
+    0xfffdcce5,
+    0xff8bd3c7,
+    0xffb30000,
+    0xff7c1158,
+    0xff4421af,
+    0xff1a53ff,
+    0xff0d88e6,
+    0xff00b7c7,
+    0xff5ad45a,
+    0xff8be04e,
+    0xffebdc78,
   ];
 
   Widget getChart() {
     switch (chartNum) {
       case 1:
         // First Bar Chart
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            const SizedBox(width: 200),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text("2000", style: sliderTextStyle),
-                SizedBox(
-                  width: 600,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 6,
-                    ),
-                    child: Slider(
-                      value: _year,
-                      onChanged: (value) => setState(() {
-                        _year = value.roundToDouble();
-                      }),
-                      min: 2000,
-                      max: 2021,
-                      divisions: 20,
-                      label: _year.toString(),
-                    ),
-                  ),
-                ),
-                Text("2021", style: sliderTextStyle),
-              ],
-            ),
-            Text("Year: ${_year.toStringAsFixed(0)}", style: sliderTextStyle),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+                const SizedBox(height: 30),
+                Text("Year : ${_year.toStringAsFixed(0)}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    )),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Checkbox(
-                      value: applySort,
-                      onChanged: (value) {
-                        applySort = value!;
-                        setState(() {});
-                      },
+                    Text("2000", style: sliderTextStyle),
+                    SizedBox(
+                      width: 600,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6,
+                        ),
+                        child: Slider(
+                          value: _year,
+                          onChanged: (value) => setState(() {
+                            _year = value.roundToDouble();
+                          }),
+                          min: 2000,
+                          max: 2021,
+                          divisions: 20,
+                          label: _year.toString(),
+                        ),
+                      ),
                     ),
-                    const Text("Apply Sort"),
+                    Text("2021", style: sliderTextStyle),
                   ],
                 ),
-                if (applySort)
-                  Row(
-                    children: [
-                      const SizedBox(width: 20),
-                      Checkbox(
-                        value: !sortAscending,
-                        onChanged: (value) {
-                          sortAscending = false;
-                          setState(() {});
-                        },
-                      ),
-                      const Text("Descending Order"),
-                    ],
+
+                const SizedBox(height: 30),
+                // chart
+                SizedBox(
+                  width: chartWidth,
+                  height: chartHeight,
+                  child: getBarChart(
+                    year: _year.toInt(),
+                    xAxis: List.from(selectedFilter),
+                    subXAxis: ['합계출산율'],
+                    sort: applySort,
+                    isAscending: sortAscending,
                   ),
-                if (applySort)
-                  Row(
-                    children: [
-                      const SizedBox(width: 20),
-                      Checkbox(
-                        value: sortAscending,
-                        onChanged: (value) {
-                          sortAscending = true;
-                          setState(() {});
-                        },
-                      ),
-                      const Text("Ascending Order"),
-                    ],
-                  )
+                ),
               ],
             ),
-            const SizedBox(height: 30),
+            const SizedBox(width: 50),
             SizedBox(
-              width: chartWidth,
-              height: chartHeight,
-              child: getBarChart(
-                year: _year.toInt(),
-                xAxis: List.from(selectedFilter),
-                subXAxis: ['합계출산율'],
-                sort: applySort,
-                isAscending: sortAscending,
+              width: 200,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 100),
+                  const Text("Sorting", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: applySort,
+                        onChanged: (value) {
+                          applySort = value!;
+                          setState(() {});
+                        },
+                      ),
+                      const Text("Apply Sorting", style: TextStyle(fontSize: 18)),
+                    ],
+                  ),
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: !sortAscending,
+                          onChanged: (value) {
+                            sortAscending = false;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Descending Order", style: TextStyle(fontSize: 18)),
+                      ],
+                    ),
+                  if (applySort)
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Checkbox(
+                          value: sortAscending,
+                          onChanged: (value) {
+                            sortAscending = true;
+                            setState(() {});
+                          },
+                        ),
+                        const Text("Ascending Order", style: TextStyle(fontSize: 18)),
+                      ],
+                    )
+                ],
               ),
             ),
           ],
@@ -508,6 +551,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ],
         );
+      case 3:
       default:
         return const SizedBox.shrink();
     }
@@ -519,12 +563,7 @@ class _MyHomePageState extends State<MyHomePage> {
     required List<String> subXAxis,
     bool sort = false,
     bool isAscending = false,
-    List<String>? excludeXs,
   }) {
-    if (excludeXs != null) {
-      xAxis = xAxis.where((element) => !excludeXs.contains(element)).toList();
-    }
-
     if (sort) {
       xAxis.sort((a, b) {
         double? _a = getData(year, a, subXAxis[0]);
@@ -575,17 +614,46 @@ class _MyHomePageState extends State<MyHomePage> {
         barGroups: xAxis
             .asMap()
             .entries
-            .map((x) => BarChartGroupData(
-                  x: x.key + 1,
-                  barRods: subXAxis
-                      .map((subX) => BarChartRodData(
-                            toY: getData(year, subX, x.value) ?? 0,
-                          ))
-                      .toList(),
-                ))
+            .map(
+              (x) => BarChartGroupData(
+                x: x.key + 1,
+                // barRods: subXAxis
+                //     .map((subX) => BarChartRodData(
+                //           toY: getData(year, subX, x.value) ?? 0,
+                //           color: Color(colorCodes[x.key]),
+                //           width: 25,
+                //         ))
+                //     .toList(),
+                barRods: [
+                  BarChartRodData(
+                    toY: getData(year, subXAxis[0], x.value) ?? 0,
+                    color: Color(colorCodes[x.key]),
+                    width: 25,
+                  )
+                ],
+              ),
+            )
             .toList(),
+        barTouchData: BarTouchData(
+          handleBuiltInTouches: true,
+          touchTooltipData: BarTouchTooltipData(
+            maxContentWidth: 180,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              String region = xAxis[groupIndex];
+              String age = subXAxis[rodIndex];
+
+              return BarTooltipItem(
+                "[${regionText[region]}]\n${rod.toY}",
+                const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                ),
+              );
+            },
+          ),
+        ),
       ),
-      swapAnimationDuration: const Duration(microseconds: 500),
+      swapAnimationDuration: const Duration(microseconds: 150),
       swapAnimationCurve: Curves.linear,
     );
   }
