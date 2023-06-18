@@ -774,13 +774,18 @@ class _MyHomePageState extends State<MyHomePage> {
             double population = getData2(year, e.value) ?? 0;
 
             Color color = Color(colorCodes[e.key]);
+            Color borderColor = Colors.black45;
 
             if (!isPieHighlighted(e.key)) {
               color = color.withOpacity(0.15);
+              borderColor = Colors.white;
             }
 
             return PieChartSectionData(
-              borderSide: const BorderSide(width: 0),
+              borderSide: BorderSide(
+                width: 2,
+                color: borderColor,
+              ),
               color: color,
               radius: 200 * (1 + math.log(fertility)),
               value: population,
@@ -827,6 +832,7 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           },
         ),
+        sectionsSpace: 0,
       ),
       swapAnimationDuration: const Duration(milliseconds: 150),
       swapAnimationCurve: Curves.linear,
