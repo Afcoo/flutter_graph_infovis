@@ -128,6 +128,8 @@ class _MyHomePageState extends State<MyHomePage> {
     debugPrint("Data Load Done:");
     // debugPrint(data.toString());
 
+    clearFilter();
+    // showFilterDialog();
     return true;
   }
 
@@ -151,9 +153,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ))
               .toList(),
-          onChanged: (value) => setState(() {
+          onChanged: (value) {
             chartNum = value!;
-          }),
+
+            clearFilter();
+          },
           value: chartNum,
         ),
       ),
@@ -166,11 +170,81 @@ class _MyHomePageState extends State<MyHomePage> {
             : const Center(child: CircularProgressIndicator()),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        onPressed: showFilterDialog,
+        tooltip: 'Set Filter',
+        child: const Icon(Icons.filter_alt_outlined),
       ),
     );
+  }
+
+  void showFilterDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            List<Widget> filters = filterOptions
+                .map(
+                  (e) => Row(
+                    children: [
+                      Checkbox(
+                        value: selectedFilter.contains(e),
+                        onChanged: (value) {
+                          if (value!) {
+                            selectedFilter.add(e);
+                          } else {
+                            selectedFilter.removeWhere((element) => (element == e));
+                          }
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        regionText[e]!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+                .toList();
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: const Text("Set Filter", style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: filters,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Done"),
+                )
+              ],
+            );
+          },
+        );
+      },
+    );
+    setState(() {});
+  }
+
+  void clearFilter() {
+    switch (chartNum) {
+      case 1:
+        filterOptions = List.from(regions);
+        selectedFilter = List.from(regions);
+        break;
+      case 2:
+        filterOptions = List.from(regions);
+        // selectedFilter = List.from(regions);
+        selectedFilter = <String>["전국"];
+        break;
+      case 3:
+        break;
+    }
+    setState(() {});
   }
 
   int chartNum = 2;
@@ -296,126 +370,141 @@ class _MyHomePageState extends State<MyHomePage> {
               height: chartHeight,
               child: getBarChart(
                 year: _year.toInt(),
-                xAxis: List.from(regions),
+                xAxis: List.from(selectedFilter),
                 subXAxis: ['합계출산율'],
                 sort: applySort,
                 isAscending: sortAscending,
-                excludeXs: selectedFilter,
               ),
             ),
           ],
         );
       case 2:
         return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(zoomY.toStringAsFixed(1), style: sliderTextStyle),
-                    Transform.rotate(
-                      angle: -math.pi / 2,
-                      origin: const Offset(70, 70),
-                      child: SizedBox(
-                        width: 300,
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 6,
-                            minThumbSeparation: 50,
-                          ),
-                          child: Slider(
-                            value: zoomY,
-                            min: 1,
-                            max: 2.9,
-                            onChanged: (value) => setState(() {
-                              zoomY = value;
-                            }),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 300),
-                    Text("Zoom Y Axis", style: sliderTextStyle)
-                  ],
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(baseY.toStringAsFixed(1), style: sliderTextStyle),
-                    Transform.rotate(
-                      angle: -math.pi / 2,
-                      origin: const Offset(70, 70),
-                      child: SizedBox(
-                        width: 300,
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 6,
-                            minThumbSeparation: 50,
-                          ),
-                          child: Slider(
-                            value: baseY,
-                            min: 0,
-                            max: 2,
-                            onChanged: (value) => setState(() {
-                              baseY = value;
-                            }),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 300),
-                    Text("Base Y Axis", style: sliderTextStyle)
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: chartWidth,
-                      height: chartHeight,
-                      child: getLineChart(
-                        minYear: _yearRange.start.toInt(),
-                        maxYear: _yearRange.end.toInt(),
-                        regions: regions.skip(10).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    Row(
+            SizedBox(
+              width: 320,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 150,
+                    left: -50,
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text("2000", style: sliderTextStyle),
-                        SizedBox(
-                          width: 600,
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 6,
-                              minThumbSeparation: 50,
-                            ),
-                            child: RangeSlider(
-                              values: _yearRange,
-                              onChanged: (values) => setState(() {
-                                _yearRange = RangeValues(values.start.roundToDouble(), values.end.roundToDouble());
-                              }),
-                              min: 2000,
-                              max: 2021,
-                              divisions: 20,
-                              labels: RangeLabels(
-                                _yearRange.start.round().toString(),
-                                _yearRange.end.round().toString(),
+                        Text(zoomY.toStringAsFixed(1), style: sliderTextStyle),
+                        Transform.rotate(
+                          angle: -math.pi / 2,
+                          origin: const Offset(70, 70),
+                          child: SizedBox(
+                            width: 300,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 6,
+                                minThumbSeparation: 50,
+                              ),
+                              child: Slider(
+                                value: zoomY,
+                                min: 1,
+                                max: 2.9,
+                                onChanged: (value) => setState(() {
+                                  zoomY = value;
+                                }),
                               ),
                             ),
                           ),
                         ),
-                        Text("2021", style: sliderTextStyle),
+                        const SizedBox(height: 300),
+                        Text("Zoom Y Axis", style: sliderTextStyle)
                       ],
                     ),
-                    Text("Year: ${_yearRange.start} - ${_yearRange.end}", style: sliderTextStyle),
+                  ),
+                  Positioned(
+                    top: 150,
+                    left: 80,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(baseY.toStringAsFixed(1), style: sliderTextStyle),
+                        Transform.rotate(
+                          angle: -math.pi / 2,
+                          origin: const Offset(70, 70),
+                          child: SizedBox(
+                            width: 300,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 6,
+                                minThumbSeparation: 50,
+                              ),
+                              child: Slider(
+                                value: baseY,
+                                min: 0,
+                                max: 2,
+                                onChanged: (value) => setState(() {
+                                  baseY = value;
+                                }),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 300),
+                        Text("Base Y Axis", style: sliderTextStyle)
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: chartWidth,
+                  height: chartHeight,
+                  child: getLineChart(
+                    minYear: _yearRange.start.toInt(),
+                    maxYear: _yearRange.end.toInt(),
+                    regions: List.from(selectedFilter),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("2000", style: sliderTextStyle),
+                    SizedBox(
+                      width: 600,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6,
+                          minThumbSeparation: 50,
+                        ),
+                        child: RangeSlider(
+                          values: _yearRange,
+                          onChanged: (values) => setState(() {
+                            _yearRange = RangeValues(values.start.roundToDouble(), values.end.roundToDouble());
+                          }),
+                          min: 2000,
+                          max: 2021,
+                          divisions: 20,
+                          labels: RangeLabels(
+                            _yearRange.start.round().toString(),
+                            _yearRange.end.round().toString(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text("2021", style: sliderTextStyle),
                   ],
                 ),
+                Text("Year: ${_yearRange.start} - ${_yearRange.end}", style: sliderTextStyle),
               ],
+            ),
+            const SizedBox(width: 50),
+            SizedBox(
+              width: 270,
+              child: getLegend(),
             ),
           ],
         );
@@ -510,6 +599,8 @@ class _MyHomePageState extends State<MyHomePage> {
     var yearLength = maxYear - minYear + 1;
     var minY = baseY - (3 - zoomY);
     var maxY = baseY + (3 - zoomY);
+    minY = minY < 0 ? 0 : minY;
+
     return LineChart(
       LineChartData(
         minY: minY,
@@ -573,16 +664,6 @@ class _MyHomePageState extends State<MyHomePage> {
             )
             .toList(),
         lineTouchData: LineTouchData(
-          // touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
-          //   debugPrint(event.toString());
-          //   debugPrint(touchResponse.toString());
-          //   if (event is FlLongPressStart) {
-          //     // handle tap here
-          //     for (var element in touchResponse!.lineBarSpots!) {
-          // 			element.bar.dotData.
-          //     }
-          //   }
-          // },
           handleBuiltInTouches: true,
           touchTooltipData: LineTouchTooltipData(
               fitInsideVertically: true,
@@ -603,6 +684,30 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       duration: const Duration(milliseconds: 150),
       curve: Curves.linear,
+    );
+  }
+
+  Widget getLegend() {
+    List<Widget> legends = selectedFilter.asMap().entries.map((e) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: ColoredBox(color: Color(colorCodes[e.key])),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            regionText[e.value] ??= "",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      );
+    }).toList();
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: <Widget>[const SizedBox(height: 100)] + legends,
     );
   }
 
