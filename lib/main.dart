@@ -69,9 +69,9 @@ class _MyHomePageState extends State<MyHomePage> {
   };
 
   var availableChart = <String, int>{
-    "Bar Chart": 1,
-    "Line Chart": 2,
-    "Pie Chart": 3,
+    "Fertility Rates for Each City in South Korea (Bar Chart)": 1,
+    "Fertility Rates for Each City in South Korea (Line Chart)": 2,
+    "Fertility Rates and Population for Each City in South Korea (Pie Chart)": 3,
   };
 
   final double chartWidth = 800;
@@ -169,11 +169,15 @@ class _MyHomePageState extends State<MyHomePage> {
           items: availableChart.entries
               .map((e) => DropdownMenuItem(
                     value: e.value,
-                    child: Text(
-                      e.key,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                    child: SizedBox(
+                      width: 1200,
+                      child: Text(
+                        e.key,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ))
@@ -297,7 +301,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  int chartNum = 3;
+  int chartNum = 1;
 
   double _year = 2021;
   var _yearRange = const RangeValues(2000, 2021);
@@ -727,6 +731,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool sortAsFertility = false;
+  int pieTouchedIndex = -1;
+  List<int> pieSelectedIndexes = <int>[];
 
   Widget getPieChart({
     required int year,
@@ -767,8 +773,15 @@ class _MyHomePageState extends State<MyHomePage> {
             double fertility = getData(year, e.value, "합계출산율") ?? 0;
             double population = getData2(year, e.value) ?? 0;
 
+            Color color = Color(colorCodes[e.key]);
+
+            if (!isPieHighlighted(e.key)) {
+              color = color.withOpacity(0.15);
+            }
+
             return PieChartSectionData(
-              color: Color(colorCodes[e.key]),
+              borderSide: const BorderSide(width: 0),
+              color: color,
               radius: 200 * (1 + math.log(fertility)),
               value: population,
               title: fertility.toString(),
@@ -795,32 +808,68 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
               titlePositionPercentageOffset: 0.7,
-              badgeWidget: getBadge(regionText[e.value]!),
+              badgeWidget: getBadge(regionText[e.value]!, e.key),
               badgePositionPercentageOffset: 1.1,
             );
           },
         ).toList(),
+        pieTouchData: PieTouchData(
+          touchCallback: (FlTouchEvent event, pieTouchResponse) {
+            setState(() {
+              if (!event.isInterestedForInteractions ||
+                  pieTouchResponse == null ||
+                  pieTouchResponse.touchedSection == null) {
+                pieTouchedIndex = -1;
+                return;
+              }
+              pieTouchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+              debugPrint(pieTouchedIndex.toString());
+            });
+          },
+        ),
       ),
       swapAnimationDuration: const Duration(milliseconds: 150),
       swapAnimationCurve: Curves.linear,
     );
   }
 
-  Widget getBadge(String value) {
+  bool isPieHighlighted(int index) {
+    if (pieSelectedIndexes.isNotEmpty && pieSelectedIndexes.contains(index)) {
+      return true;
+    } else if (pieTouchedIndex == index) {
+      return true;
+    }
+    if (pieTouchedIndex < 0 && pieSelectedIndexes.isEmpty) {
+      return true;
+    }
+    return false;
+  }
+
+  Widget getBadge(String value, int index) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        height: 26,
-        child: ColoredBox(
-          color: Colors.black38,
-          child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Colors.white,
+      child: GestureDetector(
+        onTap: () {
+          if (pieSelectedIndexes.contains(index)) {
+            pieSelectedIndexes.removeWhere((element) => element == index);
+          } else {
+            pieSelectedIndexes.add(index);
+          }
+          setState(() {});
+        },
+        child: SizedBox(
+          height: 26,
+          child: ColoredBox(
+            color: Colors.black38,
+            child: Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
